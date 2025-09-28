@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="2.4"
+        android:scaleY="2.4"
+        android:translateX="27"
+        android:translateY="27">
+        <!-- Button at top -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M9,1h6v2H9V1z"/>
+        <!-- Main circle -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M12,4c-4.97,0 -9,4.03 -9,9s4.03,9 9,9s9,-4.03 9,-9S16.97,4 12,4zM12,20c-3.87,0 -7,-3.13 -7,-7s3.13,-7 7,-7s7,3.13 7,7S15.87,20 12,20z"/>
+        <!-- Clock hands -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M12.5,7H11v6l5.25,3.15l0.75,-1.23l-4.5,-2.67V7z"/>
+        <!-- Center dot -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M12,11.5 A1.5,1.5 0 1,1 12,14.5 A1.5,1.5 0 1,1 12,11.5 Z"/>
+    </group>
+</vector>
