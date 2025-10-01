@@ -1,13 +1,14 @@
 [versions]
-agp = "8.7.3"
-kotlin = "2.0.21"
+agp = "8.13.0"
+kotlin = "2.2.20"
 playServicesWearable = "19.0.0"
-composeBom = "2024.12.01"
-composeMaterial = "1.4.0"
-composeFoundation = "1.4.0"
+composeBom = "2025.09.01"
+composeMaterial = "1.5.2"
+composeFoundation = "1.5.2"
 wearToolingPreview = "1.0.0"
 activityCompose = "1.11.0"
 coreSplashscreen = "1.0.1"
+materialIconsExtended = "1.7.8"
 
 [libraries]
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
@@ -23,9 +24,9 @@ compose-foundation = { group = "androidx.wear.compose", name = "compose-foundati
 wear-tooling-preview = { group = "androidx.wear", name = "wear-tooling-preview", version.ref = "wearToolingPreview" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-

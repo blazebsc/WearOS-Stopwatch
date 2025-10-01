@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class StopwatchViewModel : ViewModel() {
@@ -47,20 +48,12 @@ class StopwatchViewModel : ViewModel() {
         _stopwatchState.addLap(_stopwatchState.currentTimeMillis)
     }
 
-    // Enhanced time formatting for better display
+    // Format time as ss.cc (seconds.centiseconds), always length 5 like "00.00"
     fun formatTime(timeMillis: Long): String {
-        val minutes = TimeUnit.MILLISECONDS.toMinutes(timeMillis)
-        val seconds = TimeUnit.MILLISECONDS.toSeconds(timeMillis) % 60
+        val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(timeMillis)
+        val seconds = (totalSeconds % 60)
         val centiseconds = (timeMillis % 1000) / 10
-        
-        return when {
-            minutes > 0 -> String.format("%02d:%02d.%02d", minutes, seconds, centiseconds)
-            else -> String.format("%02d.%02d", seconds, centiseconds)
-        }
-    }
-    
-    fun formatLapTime(timeMillis: Long, lapNumber: Int): String {
-        return "Lap $lapNumber: ${formatTime(timeMillis)}"
+        return String.format(Locale.US, "%02d.%02d", seconds, centiseconds)
     }
     
     // Get the time since the last lap (or total time if no laps)

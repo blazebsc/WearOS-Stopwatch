@@ -1,8 +1,12 @@
 package com.blake7.watchstopwatch.presentation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -16,6 +20,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,6 +32,12 @@ import kotlin.math.abs
 import androidx.wear.compose.material.*
 import androidx.wear.tooling.preview.devices.WearDevices
 import com.blake7.watchstopwatch.presentation.theme.WatchStopWatchTheme
+// Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
 
 @Composable
 fun WearApp(viewModel: StopwatchViewModel) {
@@ -34,7 +45,7 @@ fun WearApp(viewModel: StopwatchViewModel) {
 
     WatchStopWatchTheme {
         Scaffold(
-            timeText = { TimeText() },
+            timeText = {  TimeText() },
             vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) }
         ) {
             Box(
@@ -73,7 +84,7 @@ fun StopwatchScreen(
     viewModel: StopwatchViewModel
 ) {
     var showLaps by remember { mutableStateOf(false) }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -82,7 +93,7 @@ fun StopwatchScreen(
                     // Vertical swipe gestures
                     if (abs(dragAmount.y) > abs(dragAmount.x) && abs(dragAmount.y) > 15) {
                         // Swipe up to show laps
-                        if (dragAmount.y < -30 && lapTimes.isNotEmpty() && !showLaps) {
+                        if (dragAmount.y < -30 && !showLaps) {
                             showLaps = true
                         }
                         // Swipe down to close laps
@@ -96,19 +107,19 @@ fun StopwatchScreen(
         // Always show the circular progress (background layer)
         val timeSinceLastLap = currentTimeMillis - lastLapTime
         val secondsProgress = ((timeSinceLastLap % 60000) / 60000f)
-        
+
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = (min(size.width, size.height) / 2f) - 8.dp.toPx()
             val strokeWidth = 6.dp.toPx()
-            
+
             drawCircle(
                 color = Color.White.copy(alpha = 0.15f),
                 radius = radius,
                 center = center,
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
-            
+
             if (secondsProgress > 0) {
                 drawArc(
                     color = if (isRunning) Color(0xFF4CAF50) else Color(0xFF2196F3),
@@ -121,167 +132,202 @@ fun StopwatchScreen(
                 )
             }
         }
-        
-        if (showLaps && lapTimes.isNotEmpty()) {
-            // Lap view with background
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colors.background.copy(alpha = 0.95f))
-            ) {
+
+         Crossfade(targetState = showLaps, animationSpec = tween(200)) { isShowingLaps ->
+            if (isShowingLaps) {
+                // Lap view with background
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colors.background.copy(alpha = 0.95f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "All Laps (${lapTimes.size})",
+                            style = MaterialTheme.typography.title3,
+                            color = MaterialTheme.colors.primary,
+                            modifier = Modifier.padding(vertical = 10.dp)
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            reverseLayout = true
+                        ) {
+                            itemsIndexed(lapTimes, key = { _, lapTime -> lapTime }) { index, lapTime ->
+                                val lapDuration = if (index == 0) {
+                                    lapTime
+                                } else {
+                                    lapTime - lapTimes[index - 1]
+                                }
+
+                                LapRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+                                    lapNumber = index + 1,
+                                    lapTime = viewModel.formatTime(lapDuration),
+                                    totalTime = viewModel.formatTime(lapTime),
+                                    isLatest = index == lapTimes.size - 1
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Swipe down to return",
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colors.onBackground.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                        )
+                    }
+                }
+            } else {
+                // Main stopwatch view
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "All Laps (${lapTimes.size})",
-                        style = MaterialTheme.typography.title3,
-                        color = MaterialTheme.colors.primary,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                    
-                    LazyColumn(
+                    // Time and current lap
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                        reverseLayout = true
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        itemsIndexed(lapTimes) { index, lapTime ->
-                            val lapDuration = if (index == 0) {
-                                lapTime
-                            } else {
-                                lapTime - lapTimes[index - 1]
-                            }
-                            LapRow(
-                                lapNumber = index + 1,
-                                lapTime = viewModel.formatTime(lapDuration),
-                                totalTime = viewModel.formatTime(lapTime),
-                                isLatest = index == lapTimes.size - 1
-                            )
-                        }
-                    }
-                    
-                    Text(
-                        text = "Swipe Down To Return",
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colors.onBackground.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        } else {
-            // Main stopwatch view
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .offset(y = (-28).dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Spacer(modifier = Modifier.height(40.dp))
-                
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(
-                        text = currentTime,
-                        fontSize = if (currentTime.length > 5) 26.sp else 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colors.onBackground,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    if (lapTimes.isNotEmpty()) {
+                        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                        val pulse by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.01f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1500, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "timerPulse"
+                        )
+
                         Text(
-                            text = "Lap ${lapTimes.size + 1}: ${viewModel.formatCurrentLapTime()}",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colors.primary.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.Medium,
+                            text = currentTime,
+                            fontSize = 32.sp, // constant now that we always show ss.cc
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colors.onBackground,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 4.dp)
+                                .graphicsLayer {
+                                    scaleX = if (isRunning) pulse else 1f
+                                    scaleY = if (isRunning) pulse else 1f
+                                },
+                            maxLines = 1,
+                            softWrap = false
                         )
-                    }
-                }
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    if (isRunning) {
-                        Button(
-                            onClick = onStopClick,
-                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFD32F2F)),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Text("⏸", fontSize = 16.sp, color = Color.White)
-                        }
-                        
-                        Button(
-                            onClick = onLapClick,
-                            colors = ButtonDefaults.buttonColors(
-                                backgroundColor = if (isRunning) MaterialTheme.colors.secondary 
-                                                else MaterialTheme.colors.secondary.copy(alpha = 0.3f)
-                            ),
-                            modifier = Modifier.size(48.dp)
-                        ) {
+
+                        if (lapTimes.isNotEmpty()) {
                             Text(
-                                "⏱", 
-                                fontSize = 14.sp, 
-                                color = if (isRunning) MaterialTheme.colors.onSecondary 
-                                       else MaterialTheme.colors.onSecondary.copy(alpha = 0.5f)
-                            )
-                        }
-                    } else {
-                        Button(
-                            onClick = onStartClick,
-                            colors = ButtonDefaults.buttonColors(
-                                backgroundColor = if (currentTimeMillis > 0) Color(0xFF388E3C) else Color(0xFF4CAF50)
-                            ),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Text("▶", fontSize = 16.sp, color = Color.White)
-                        }
-                        
-                        Button(
-                            onClick = onResetClick,
-                            enabled = currentTimeMillis > 0,
-                            colors = ButtonDefaults.buttonColors(
-                                backgroundColor = MaterialTheme.colors.surface,
-                                disabledBackgroundColor = MaterialTheme.colors.surface.copy(alpha = 0.3f)
-                            ),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Text(
-                                "↻",
-                                fontSize = 16.sp,
-                                color = if (currentTimeMillis > 0) MaterialTheme.colors.onSurface 
-                                       else MaterialTheme.colors.onSurface.copy(alpha = 0.3f)
+                                text = "Lap ${lapTimes.size + 1}: ${viewModel.formatCurrentLapTime()}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colors.primary.copy(alpha = 0.9f),
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp)
                             )
                         }
                     }
-                }
-                
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (lapTimes.isNotEmpty()) {
-                        Text(
-                            text = "Swipe Up For Laps (${lapTimes.size})",
-                            fontSize = 9.sp,
-                            color = MaterialTheme.colors.onBackground.copy(alpha = 0.6f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+
+                    AnimatedContent(
+                        targetState = isRunning,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(200, easing = LinearOutSlowInEasing)) togetherWith
+                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                        },
+                        label = "button-transition"
+                    ) { running ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            if (running) {
+                                AnimatedButton(
+                                    onClick = onStopClick,
+                                    colors = ButtonDefaults.buttonColors(
+                                        backgroundColor = Color(0xFFFF0000), // pure red
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Pause,
+                                        contentDescription = "Pause",
+                                        tint = Color.White
+                                    )
+                                }
+
+                                AnimatedButton(
+                                    onClick = onLapClick,
+                                    colors = ButtonDefaults.buttonColors(
+                                        backgroundColor = MaterialTheme.colors.secondary
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Flag,
+                                        contentDescription = "Lap",
+                                        tint = MaterialTheme.colors.onSecondary
+                                    )
+                                }
+                            } else {
+                                AnimatedButton(
+                                    onClick = onStartClick,
+                                    colors = ButtonDefaults.buttonColors(
+                                        backgroundColor = if (currentTimeMillis > 0) Color(0xFF388E3C) else Color(0xFF4CAF50),
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = "Start",
+                                        tint = Color.White
+                                    )
+                                }
+
+                                AnimatedButton(
+                                    onClick = onResetClick,
+                                    enabled = currentTimeMillis > 0,
+                                    colors = ButtonDefaults.buttonColors(
+                                        backgroundColor = MaterialTheme.colors.surface,
+                                        disabledBackgroundColor = MaterialTheme.colors.surface.copy(alpha = 0.3f)
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Replay,
+                                        contentDescription = "Reset",
+                                        tint = if (currentTimeMillis > 0) MaterialTheme.colors.onSurface
+                                               else MaterialTheme.colors.onSurface.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
+                        }
                     }
+
+                    // Always-visible swipe hint under buttons
+                    Text(
+                        text = "↑ Swipe up for laps (${lapTimes.size})",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colors.onBackground,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 12.dp)
+                    )
                 }
             }
         }
@@ -289,21 +335,49 @@ fun StopwatchScreen(
 }
 
 @Composable
+fun AnimatedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.primaryButtonColors(),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "buttonScale"
+    )
+
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .size(48.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        enabled = enabled,
+        colors = colors,
+        interactionSource = interactionSource,
+        content = content
+    )
+}
+
+@Composable
 fun LapRow(
+    modifier: Modifier = Modifier,
     lapNumber: Int,
     lapTime: String,
     totalTime: String,
     isLatest: Boolean
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(
-                if (isLatest) MaterialTheme.colors.primary.copy(alpha = 0.15f)
-                else MaterialTheme.colors.surface.copy(alpha = 0.1f)
-            )
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .background(MaterialTheme.colors.surface.copy(alpha = 0.1f))
+            .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -312,22 +386,22 @@ fun LapRow(
         ) {
             Text(
                 text = "Lap  $lapNumber",
-                fontSize = 12.sp,
-                color = MaterialTheme.colors.onBackground.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp,
+                color = if (isLatest) MaterialTheme.colors.primary else MaterialTheme.colors.onBackground.copy(alpha = 0.8f),
+                fontWeight = if (isLatest) FontWeight.Bold else FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )
-            
+
             Text(
                 text = lapTime,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 color = if (isLatest) MaterialTheme.colors.primary else MaterialTheme.colors.onBackground,
                 fontWeight = if (isLatest) FontWeight.Bold else FontWeight.Normal,
                 textAlign = TextAlign.End,
                 modifier = Modifier.weight(1f)
             )
         }
-        
+
         // Show total time in smaller text
         Row(
             modifier = Modifier.fillMaxWidth(),
